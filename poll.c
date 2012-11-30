@@ -73,9 +73,14 @@
 				 Includes
 \*---------------------------------------------------------------------------*/
 
+#ifdef _MSC_VER
+#include <winsock2.h>
+#define __STDC__ 1
+#else
 #include <unistd.h>			     /* standard Unix definitions */
-#include <sys/types.h>                       /* system types */
 #include <sys/time.h>                        /* time definitions */
+#endif
+#include <sys/types.h>                       /* system types */
 #include <assert.h>                          /* assertion macros */
 #include <string.h>                          /* string functions */
 #include "poll.h"                            /* this package */
@@ -252,6 +257,25 @@ static void map_select_results
     return;
 }
 
+#ifdef _MSC_VER
+/*
+ * If this version of windows has WSAPoll, we prefer the vendor
+ * implemented version over poll-with-select-emulation.
+ */
+static HMODULE ws2dll;
+int (WSAAPI *wsapoll)(WSAPOLLFD fdarray[], ULONG nfds, INT timeout);
+static __inline void init_win32(void)
+{
+	static int once;
+	if (!once) {
+		once = 1;
+		ws2dll = LoadLibrary("ws2_32.dll");
+		if (ws2dll) 
+			(FARPROC)wsapoll = GetProcAddress(ws2dll, "WSAPoll");
+	}
+}
+#endif
+
 /*---------------------------------------------------------------------------*\
 			     Public Functions
 \*---------------------------------------------------------------------------*/
@@ -275,6 +299,12 @@ int poll
     int	    ready_descriptors;                   /* function result */
     int	    max_fd;                              /* maximum fd value */
     struct  timeval *pTimeout;                   /* actually passed */
+
+#ifdef _MSC_VER
+    init_win32();
+    if (wsapoll)
+	    return wsapoll(pArray, n_fds, timeout);
+#endif
 
     FD_ZERO (&read_descs);
     FD_ZERO (&write_descs);

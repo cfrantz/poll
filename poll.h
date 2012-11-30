@@ -71,6 +71,15 @@
 #ifndef _POLL_EMUL_H_
 #define _POLL_EMUL_H_
 
+#ifdef _MSC_VER
+#include <winsock2.h>
+#endif
+#ifndef POLLIN
+/*
+ * Some systems (Windows) have a poll-like call in the SDK, however,
+ * only some versions (Vista and beyond) actually implement the call.
+ * All previous versions do not.
+ */
 #define POLLIN		0x01
 #define POLLPRI		0x02
 #define POLLOUT		0x04
@@ -84,6 +93,7 @@ struct pollfd
     short   events;
     short   revents;
 };
+#endif
 
 typedef unsigned long nfds_t;
 
